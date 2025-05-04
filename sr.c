@@ -129,20 +129,19 @@ void A_input(struct pkt packet)
 /* called when A's timer goes off */
 void A_timerinterrupt(void)
 {
+  current_sim_time += RTT;
+  float now = current_sim_time;
   int i;
-
-  if (TRACE > 0)
-    printf("----A: time out,resend packets!\n");
-
-  for(i=0; i<windowcount; i++) {
-
-    if (TRACE > 0)
-      printf ("---A: resending packet %d\n", (buffer[(windowfirst+i) % WINDOWSIZE]).seqnum);
-
-    tolayer3(A,buffer[(windowfirst+i) % WINDOWSIZE]);
-    packets_resent++;
-    if (i==0) starttimer(A,RTT);
+  for (i = 0; i < WINDOWSIZE; i++) {
+    if (!send_window[i].acked && (now - send_window[i].sent_time >= RTT)) {
+      tolayer3(A, send_window[i].packet);
+      send_window[i].sent_time = now;
+      packets_resent++;
+      if (TRACE > 0)
+        printf("A: Timeout, retransmitting packet %d\n", send_window[i].packet.seqnum);
+    }
   }
+  starttimer(A, RTT);
 }
 
 
@@ -151,14 +150,20 @@ void A_timerinterrupt(void)
 /* entity A routines are called. You can use it to do any initialization */
 void A_init(void)
 {
-  /* initialise A's window, buffer and sequence number */
-  A_nextseqnum = 0;  /* A starts with seq num 0, do not change this */
+  base = 0;
+  nextseqnum = 0;
+  int i;
+  for (i = 0; i < WINDOWSIZE; i++){
+    send_window[i].acked = 1;
+  }
+  /* initialise A's window, buffer and sequence number 
+  A_nextseqnum = 0;   A starts with seq num 0, do not change this 
   windowfirst = 0;
-  windowlast = -1;   /* windowlast is where the last packet sent is stored.
+  windowlast = -1;    windowlast is where the last packet sent is stored.
 		     new packets are placed in winlast + 1
 		     so initially this is set to -1
-		   */
-  windowcount = 0;
+		   
+  windowcount = 0; */
 }
 
 
